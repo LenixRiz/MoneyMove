@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "create-react-app",
-    "slug": "create-react-app",
+    "name": "MoneyMove",
+    "slug": "moneymove",
+    "newArchEnabled": true,
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

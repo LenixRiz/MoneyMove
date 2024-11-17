@@ -1,102 +1,190 @@
-import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, Pressable } from 'react-native';
-import ItemLister from './components/ListItem';
-import Input from './components/Input';
+import { StyleSheet, Text, View, Pressable, TextInput, Modal } from 'react-native'
+import React, { useState } from 'react'
 
-export default function App() {
-  const [items, setItems] = useState([]);
+const App = () => {
+    const [showMoney, setShowMoney] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalType, setModalType] = useState('');
 
-  const addItem = (item) => {
-    setItems([...items, {
-      id: Date.now().toString(),
-      text: item,
-      isCompleted: true
-    }]);
+    const handleButtonPress = (type) => {
+        setModalType(type);
+        setModalVisible(true);
+    }
 
-  };
+    return (
+        <View style={styles.container}>
 
-  const toggleItemStatus = (id) => {
-    setItems(items.map(item =>
-      item.id === id ? { ...item, isCompleted: !item.isCompleted } : item
-    ));
-  };
+            <View style={styles.searchBar}>
+                <Text style={styles.searchLabel}>Search</Text>
+                <TextInput 
+                    style={styles.searchInput}
+                    placeholder="Cari"
+                /> 
+                {/* <Icon name="search" size={20} color="gray" style={styles.searchIcon} /> */}
+            </View>
 
-  const deleteItem = (id) => {
-    setItems(items.filter(item => item.id !== id));
-  };
+            <View style={styles.moneyContainer}>
+                {showMoney && (<Text>Rp. 2.000.000</Text>)}
+                <Pressable onPress={ () => setShowMoney(!showMoney)} style={styles.toggleButton}>
+                    <Text>{showMoney? 'Hide' : 'Show'}</Text>
+                    {/* <Icon name="eye" size={20} color="white" /> */}
+                </Pressable>
+            </View>
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.upperContainer}>
-        <View style={styles.searchBarContainer}>
-          <TextInput 
-            style={styles.searchBar}
-            placeholder="Search"
-            onChangeText={setSearchText} 
-            value={searchText}
-          />
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={modalVisible}
+                onRequestClose={() => setModalVisible(!modalVisible)}
+            >
+                <View style={styles.centeredModal}>
+                    <View style={styles.modalView}>
+                        <Text style={styles.modalTitle}>{modalType === 'masuk' ? 'Uang Masuk' : 'Uang Keluar'}</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder={modalType === 'masuk' ? 'Jumlah Uang Masuk' : 'Jumlah Uang Keluar'}
+                            keyboardType="numeric"
+                        />
+                        <View style={styles.modalButtonContainer}>
+                            <Pressable style={styles.modalButton} onPress={() => setModalVisible(false)}>
+                                <Text style={styles.modalButtonText}>Batal</Text>
+                            </Pressable>
+                            <Pressable style={styles.modalButton} onPress={() => setModalVisible(false)}>
+                                <Text style={styles.modalButtonText}>Submit</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <View style={styles.buttonContainer}>
+                <Pressable style={styles.button} onPress={() => handleButtonPress('masuk')}>
+                    {/* <Icon name="arrow-left" size={20} color="gray" style={styles.buttonIcon} /> */}
+                    <Text style={styles.buttonText}>Uang Masuk</Text>
+                </Pressable>
+                <Pressable style={styles.button} onPress={() => handleButtonPress('keluar')}>
+                    <Text style={styles.buttonText}>Uang Keluar</Text>
+                    {/* <Icon name="arrow-up" size={20} color="gray" style={styles.buttonIcon} /> */}
+                </Pressable>
+            </View>
+
         </View>
-        <View style={styles.summary}>
-          <Text>
-            Rp. 2.000.000
-          </Text>
-          <Text>
-            See
-          </Text>
-        </View>
-        <View>
-          <Pressable>
-            <Text>
-              Uang Masuk
-            </Text>
-          </Pressable>
-          <Pressable>
-            <Text>
-              Uang Keluar
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <FlatList
-        data={items}
-        renderItem={({ data }) => (
-          <ItemLister
-            Item={data}
-            toggleItemStatus={toggleItemStatus}
-            deleteItem={deleteItem}
-          />
-        )}
-        keyExtractor={data => data.id}
-      />
-      <Input addItem={addItem} />
-    </View>
-  );
+    )
 }
 
+export default App
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-  },
-  upperContainer: {
-    flex: 1,
-    padding: 5,
-    backgroundColor: '#164863',
-  },
-  summary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  searchBarContainer: {
-    marginBottom: 10,
-  },
-  searchBar: {
-    height: 40,
-    borderColor: 'white',
-    borderWidth: 1,
-    paddingLeft: 10,
-    borderRadius: 5,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#263d5c',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+    },
+
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#fff',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+    },
+    searchLabel: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        padding: 8,
+    },
+    searchIcon: {
+        marginLeft: 8,
+    },
+
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 20,
+    },
+    button: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: '#3e526b',
+        borderRadius: 8,
+        marginHorizontal: 9
+    },
+    buttonText: {
+        marginLeft: 8,
+    },
+    buttonIcon: {
+
+    },
+
+    moneyContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 20,
+    },
+    toggleButton: {
+        padding: 8,
+    },
+
+    modalView: {
+        margin: 20,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        padding: 15,
+        alignItems: 'flex-start',
+        shadowColor: '#000',
+        shadowOffset:{
+            width: 0,
+            height: 2,  
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    
+    centeredModal: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalTitle: {
+        marginBotton: 15,
+        textAlign: 'left',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    modalInput: {
+        height: 40,
+        marginVertical: 12,
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 10,
+        width: 280,
+    },
+    modalButtonContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 6,
+    },
+    modalButton: {
+        paddingVertical: 8,
+        backgroundColor: '#263d5c',
+        marginHorizontal: 9,
+        borderRadius: 8,
+        width: 120,
+    },
+    modalButtonText: {
+        color: 'white',
+        textAlign: 'center',
+    },
+
 });
