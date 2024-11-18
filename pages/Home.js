@@ -294,7 +294,11 @@ const Home = ({ navigation }) => {
                             onCancel={hideDatePicker}
                             date={selectedDate} // Set the current selected date
                         />
-                        <Button title="Select Date" onPress={showDatePicker} />
+                        <TouchableOpacity 
+                            style={styles.dateButton}
+                            onPress={showDatePicker}>
+                            <Text style={styles.dateButtonText}>Pilih Tanggal</Text>
+                        </TouchableOpacity>
 
                         <View style={styles.modalButtonContainer}>
                             <Pressable style={styles.modalButton} onPress={() => setModalVisible(false)}>
@@ -599,7 +603,20 @@ const styles = StyleSheet.create({
     reportButtonText: {
         color: 'white',
         textAlign: 'center',
-    }
+    },
+    dateButton: {
+        backgroundColor: '#427D9D',
+        padding: 10,
+        borderRadius: 8,
+        marginVertical: 12,
+        width: 280,
+        textAlign: 'center',
+        color: 'white',
+    },
+    dateButtonText: {
+        textAlign: 'center',
+        color: 'white',
+    },
 });
 
 export default Home
