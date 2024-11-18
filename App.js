@@ -1,22 +1,31 @@
-import { StyleSheet, Text, View, Pressable, TextInput, Modal, FlatList, Alert } from 'react-native';
+import { StyleSheet, Text, View, Pressable, TextInput, Modal, FlatList, Alert, TouchableOpacity, Image } from 'react-native';
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import Images from './components/imageIndex';
 
 const App = () => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterType, setFilterType] = useState('all');
     const [showMoney, setShowMoney] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [modalType, setModalType] = useState('');
     const [inputAmount, setInputAmount] = useState('');
+    const [inputDescription, setInputDescription] = useState('');
     const [transactions, setTransactions] = useState([]);
     const [money, setMoney] = useState(0);
     const [editIndex, setEditIndex] = useState(-1);
     const [editAmount, setEditAmount] = useState('');
+    const [category, setCategory] = useState('');
+
+    const presetAmounts = [10000, 50000, 100000, 500000, 1000000, 2000000];
+    const presetCategory = ['Makanan', 'Transportasi', 'Hiburan', 'Kebutuhana','Lainnya'];
 
     const handleButtonPress = (type) => {
         setModalType(type);
         setModalVisible(true);
         setInputAmount('');
+        setInputDescription('');
     };
 
     const handleSubmit = () => {
@@ -30,7 +39,8 @@ const App = () => {
                 {
                     type: modalType,
                     amount: amount,
-                    date: new Date()
+                    date: new Date(),
+                    description: inputDescription || ""
                 }
             ]);
             setModalVisible(false);
@@ -43,6 +53,7 @@ const App = () => {
         setModalVisible(true);
         setModalType(transactions[index].type);
         setInputAmount(transactions[index].amount.toString())
+        setInputDescription(transactions[index].description);
     }
 
     const handleSubmitEdit = () => {
@@ -70,7 +81,7 @@ const App = () => {
             setMoney(updatedMoney);
     
     
-            updatedTransactions[editIndex] = { ...oldItem, amount: newAmount };
+            updatedTransactions[editIndex] = { ...oldItem, amount: newAmount, description: inputDescription };
             return updatedTransactions;
     
         });
@@ -113,39 +124,93 @@ const App = () => {
     const renderTransaction = ({ item, index }) => (
         <>
         <View style={styles.transactionItem}>
-            <Text style={styles.transactionType}>{item.type === 'masuk' ? 'Uang Masuk' : 'Uang Keluar'}</Text>
-            <Text style={styles.transactionAmount}>Rp. {item.amount.toLocaleString()}</Text>
-            <Text style={styles.transactionDate}>{format(item.date, 'dd MMMM yyyy', { locale: id })}</Text>
-        </View>
-        <View style={styles.transactionButton}> 
-            <Pressable onPress={() => handleEdit(index)}>
-                <Text>Edit</Text>
-            </Pressable>
-            <Pressable onPress={() => handleDelete(index)}>
-                <Text>Delete</Text>
-            </Pressable>
+            <View style={styles.transactionIconContainer}>
+                <Text>{item.type === 'masuk' ? <Image source={Images.arrowout} style={styles.transactionIcon} /> : <Image source={Images.arrowin} style={styles.transactionIcon} />}</Text>
+            </View>
+            <View style={styles.transactionDetails}>
+                <Text style={[
+                    styles.transactionType,
+                    item.type === 'masuk' ? styles.transactionTypeMasuk : styles.transactionTypeKeluar
+                ]}>{item.type === 'masuk' ? 'Uang Masuk' : 'Uang Keluar'}</Text>
+                <Text style={styles.transactionAmount}>Rp. {item.amount.toLocaleString() + ',-'}</Text>
+                <Text style={styles.transactionDescription}>{item.description}</Text>
+                <Text style={styles.transactionDate}>{format(item.date, 'dd MMMM yyyy', { locale: id })}</Text>
+            </View>
+            <View style={styles.transactionButtonContainer}> 
+                <Pressable onPress={() => handleEdit(index)}>
+                    <Image source={Images.pen} style={styles.transactionIcon} />
+                </Pressable>
+                <Pressable onPress={() => handleDelete(index)}>
+                    <Image source={Images.delete} style={styles.transactionIcon} />
+                </Pressable>
+            </View>
         </View>
         </>
-    )
-;
+    );
+
+    const filteredTransactions = transactions.filter(transaction => {
+        if (filterType === 'all') {
+            return transaction.description.toLowerCase().includes(searchQuery.toLowerCase());
+        } else {
+            return transaction.description.toLowerCase().includes(searchQuery.toLowerCase()) && transaction.type === filterType;
+        }
+    });
+
+
+
     return (
         <View style={styles.container}>
+            <View style={styles.upperContainer}>
+                <View style={styles.searchContainer}>
+                <View style={styles.searchBar}>
+                    <TextInput 
+                        style={styles.searchInput}
+                        placeholder="Search"
+                        placeholderTextColor="white"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    /> 
+                    {/* <Icon name="search" size={20} color="gray" style={styles.searchIcon} /> */}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.filterButton}
+                        onPress={() => {
+                            switch (filterType) {
+                                case 'all':
+                                    setFilterType('masuk');
+                                    break;
+                                case 'masuk':
+                                    setFilterType('keluar');
+                                    break;
+                                case 'keluar':
+                                    setFilterType('all');
+                                    break
+                            }
+                        }}
+                    >
+                        <Text style={styles.filterButtonText}>
+                            {filterType === 'all' ? 'All' : filterType === 'masuk' ? 'Masuk' : 'Keluar'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+                <View style={styles.moneyContainer}>
+                    <Text style={styles.moneyText}>Rp. {showMoney ? money.toLocaleString() + ',-' : '********'}</Text>
+                    <Pressable onPress={ () => setShowMoney(!showMoney)} style={styles.toggleButton}>
+                        <Text>{showMoney ? <Image source={Images.hide} style={styles.toggleButton} /> : <Image source={Images.view} style={styles.toggleButton} />}</Text>
+                       
+                    </Pressable>
+                </View>
 
-            <View style={styles.searchBar}>
-                <Text style={styles.searchLabel}>Search</Text>
-                <TextInput 
-                    style={styles.searchInput}
-                    placeholder="Cari"
-                /> 
-                {/* <Icon name="search" size={20} color="gray" style={styles.searchIcon} /> */}
-            </View>
-
-            <View style={styles.moneyContainer}>
-                <Text style={styles.moneyText}>Rp. {showMoney ? money.toLocaleString() + ',-' : '********'}</Text>
-                <Pressable onPress={ () => setShowMoney(!showMoney)} style={styles.toggleButton}>
-                    <Text>{showMoney? 'Hide' : 'Show'}</Text>
-                    {/* <Icon name="eye" size={20} color="white" /> */}
-                </Pressable>
+                <View style={styles.buttonContainer}>
+                    <Pressable style={styles.button} onPress={() => handleButtonPress('masuk')}>
+                        <Image source={Images.arrowoutwhite} style={styles.buttonIcon} />
+                        <Text style={styles.buttonText}>Uang Masuk</Text>
+                    </Pressable>
+                    <Pressable style={styles.button} onPress={() => handleButtonPress('keluar')}>
+                        <Text style={styles.buttonText}>Uang Keluar</Text>
+                        <Image source={Images.arrowinwhite} style={styles.buttonIcon} />
+                    </Pressable>
+                </View>
             </View>
 
             <Modal
@@ -164,6 +229,28 @@ const App = () => {
                             value={inputAmount}
                             onChangeText={setInputAmount}
                         />
+                        <View style={styles.presetButtonContainer}>
+                            {presetAmounts.map( amount => (
+                                <TouchableOpacity
+                                    key={amount}
+                                    style={styles.presetButton}
+                                    onPress={() => {
+                                        const currentAmount = parseInt(inputAmount || "0", 10);
+                                        const newAmount = currentAmount + amount;
+                                        setInputAmount(newAmount.toString());
+                                    }}
+                                >
+                                    <Text style={styles.presetButtonText}>{amount.toLocaleString()}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Deskripsi"
+                            value={inputDescription}
+                            onChangeText={setInputDescription}
+                            maxLength={30}
+                        />
                         <View style={styles.modalButtonContainer}>
                             <Pressable style={styles.modalButton} onPress={() => setModalVisible(false)}>
                                 <Text style={styles.modalButtonText}>Batal</Text>
@@ -176,19 +263,8 @@ const App = () => {
                 </View>
             </Modal>
 
-            <View style={styles.buttonContainer}>
-                <Pressable style={styles.button} onPress={() => handleButtonPress('masuk')}>
-                    {/* <Icon name="arrow-left" size={20} color="gray" style={styles.buttonIcon} /> */}
-                    <Text style={styles.buttonText}>Uang Masuk</Text>
-                </Pressable>
-                <Pressable style={styles.button} onPress={() => handleButtonPress('keluar')}>
-                    <Text style={styles.buttonText}>Uang Keluar</Text>
-                    {/* <Icon name="arrow-up" size={20} color="gray" style={styles.buttonIcon} /> */}
-                </Pressable>
-            </View>
-
             <FlatList
-                data={transactions}
+                data={filteredTransactions}
                 renderItem={renderTransaction}
                 keyExtractor={(item, index) => index.toString()}
                 style={styles.transactionList}
@@ -204,50 +280,74 @@ export default App
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#263d5c',
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    upperContainer: {
+        backgroundColor: '#164863',
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
         padding: 16,
+        width: '100%',
+        marginTop: 32,
     },
 
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#fff',
+        borderColor: '#bbbdbf',
         borderRadius: 8,
-        paddingHorizontal: 12,
-    },
-    searchLabel: {
-        marginRight: 8,
+        paddingHorizontal: 6,
+        marginVertical: 10,
+        width: '100%',
     },
     searchInput: {
         flex: 1,
         padding: 8,
+        color: 'white',
     },
     searchIcon: {
         marginLeft: 8,
+    },
+    filterButton: {
+        backgroundColor: '#427d9d',
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        borderRadius: 8,
+        marginLeft: 4,
+        marginBottom: 12,
+        alignItems: 'center',
+    },
+    filterButtonText: {
+        color: 'white',
     },
 
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 20,
+        marginTop: 32,
+        marginBottom: 6,
     },
     button: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: '#3e526b',
+        paddingHorizontal: 28,
+        paddingVertical: 12,
+        backgroundColor: '#427D9D',
         borderRadius: 8,
-        marginHorizontal: 9
+        marginHorizontal: 9,
     },
     buttonText: {
-        marginLeft: 8,
+        color: 'white',
+        marginHorizontal: 8,
     },
     buttonIcon: {
-
+        height: 16,
+        width: 16,
     },
 
     moneyContainer: {
@@ -256,8 +356,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: 20,
     },
+    moneyText: {
+        fontSize: 20,
+        color: 'white',
+        fontWeight: 'bold',
+    },
     toggleButton: {
-        padding: 8,
+        height: 20,
+        width: 20,
+        marginLeft: 12
     },
 
     modalView: {
@@ -314,24 +421,106 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
 
+    presetButtonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        flexWrap: 'wrap',
+        marginTop: 6,
+        marginBottom: 6,
+        maxWidth: '90%',
+    },
+    presetButton: {
+        backgroundColor: '#427D9D',
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+        borderRadius: 8,
+        marginHorizontal: 5,
+        marginVertical: 5,
+        width: 100,
+    },
+    presetButtonText: {
+        color: 'white',
+        textAlign: 'center',
+    },
 
     transactionList: {
+        backgroundColor: 'white',
         marginTop: 20,
+        padding: 10,
         width: '100%',
     },
     transactionItem: {
-        flexDirection: 'column',
+        flexDirection: 'row',
         justifiyContent: 'space-between',
-        padding: 10,
+        padding: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
+        borderBottomColor: '#fff',
+        flexWrap: 'wrap',
+
+        shadowColor: '#000', 
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2, 
+        shadowRadius: 2,  
+
+        elevation: 3,     
+        backgroundColor: 'white',
+
+        borderRadius: 8,
+        marginHorizontal: 8,
+        marginVertical: 4, 
+    },
+    
+    transactionIconContainer: {
+        marginTop: 1,
+        marginRight: 10,
     },
 
-    transactionType: {},
-    transactionAmount: {},
-    transactionDate: {},
+    transactionButtonContainer: {
+        marginTop: 12,
+    },
 
-    moneyText: {
-        fontSize: 20,
+    transactionIcon: {
+        height: 20,
+        width: 20,
+        borderRadius: 6,
+        marginVertical: 10,
+        marginHorizontal: 12,
+    },
+
+    transactionDetails: {
+        flex: 1,
+        marginRight: 10,
+    },
+
+    transactionType: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 3,
+        color: 'black',
+    },
+    transactionTypeMasuk: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 3,
+        color: 'green',
+    },
+    transactionTypeKeluar: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 3,
+        color: 'red',
+    },
+    transactionAmount: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 12,
+    },
+    transactionDescription: {
+        fontSize: 16,
+        fontStyle: 'italic',
+        marginBottom: 3,
+    },
+    transactionDate: {
+        fontWeight: 'bold',
     },
 });
