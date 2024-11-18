@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View, Pressable, TextInput, Modal, FlatList, Alert, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, Text, View, Pressable, TextInput, Modal, FlatList, Alert, TouchableOpacity, Image, Button } from 'react-native';
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Images from '../components/imageIndex';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 const Home = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -19,9 +20,25 @@ const Home = ({ navigation }) => {
     const [editAmount, setEditAmount] = useState('');
     const [category, setCategory] = useState('');
     const [inputCategory, setInputCategory] = useState('');
+    const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+    const [selectedDate, setSelectedDate] = useState(new Date());
 
     const presetAmounts = [10000, 50000, 100000, 500000, 1000000, 2000000];
     const presetCategories = ['Pemasukan', 'Makanan', 'Transportasi', 'Hiburan', 'Kebutuhan', 'Lainnya'];
+
+    const showDatePicker = () => {
+        setDatePickerVisibility(true);
+    };
+
+    const hideDatePicker = () => {
+        setDatePickerVisibility(false);
+    };
+
+    const handleConfirm = (date) => {
+        console.warn("A date has been picked: ", date);
+        setSelectedDate(date);
+        hideDatePicker();
+    };
 
     const handleButtonPress = (type) => {
         setModalType(type);
@@ -45,6 +62,7 @@ const Home = ({ navigation }) => {
                     date: new Date(),
                     description: inputDescription || "",
                     category: inputCategory,
+                    date: selectedDate,
                 }
             ]);
             setModalVisible(false);
@@ -269,6 +287,15 @@ const Home = ({ navigation }) => {
                                 ))}
                         </Picker>
                         </View>
+                        <DateTimePickerModal
+                            isVisible={isDatePickerVisible}
+                            mode="date" // You can change to "time" or "datetime" if needed
+                            onConfirm={handleConfirm}
+                            onCancel={hideDatePicker}
+                            date={selectedDate} // Set the current selected date
+                        />
+                        <Button title="Select Date" onPress={showDatePicker} />
+
                         <View style={styles.modalButtonContainer}>
                             <Pressable style={styles.modalButton} onPress={() => setModalVisible(false)}>
                                 <Text style={styles.modalButtonText}>Batal</Text>
