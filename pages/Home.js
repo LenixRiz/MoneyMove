@@ -1,10 +1,12 @@
-import { StyleSheet, Text, View, Pressable, TextInput, Modal, FlatList, Alert, TouchableOpacity, Image, Button } from 'react-native';
-import React, { useState } from 'react';
+import { StyleSheet, Text, View, Pressable, TextInput, Modal, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import Images from '../components/imageIndex';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
+import { db } from '../db/firebaseConfig';  // Firebase Realtime Database
+import { ref, set, get, update, remove, child } from 'firebase/database';
 
 const Home = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +27,152 @@ const Home = ({ navigation }) => {
 
     const presetAmounts = [10000, 50000, 100000, 500000, 1000000, 2000000];
     const presetCategories = ['Pemasukan', 'Makanan', 'Transportasi', 'Hiburan', 'Kebutuhan', 'Lainnya'];
+
+    const updateMoneyInFirebase = async (newMoney) => {
+        const moneyRef = ref(db, 'money');  // Reference to 'money' in Firebase
+        await set(moneyRef, newMoney);
+    };
+    
+    const updateMoneyAfterTransaction = (newMoney) => {
+        setMoney(newMoney); // Update the local state
+        updateMoneyInFirebase(newMoney); // Update the Firebase value
+    };
+    
+    useEffect(() => {
+        const fetchTransactions = async () => {
+            const transactionsRef = ref(db, 'transactions');
+            const snapshot = await get(transactionsRef);
+    
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                const transactionsArray = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+                setTransactions(transactionsArray);
+            } else {
+                console.log("No data available");
+            }
+        };
+    
+        fetchTransactions();
+    }, []);
+
+    useEffect(() => {
+        const fetchMoney = async () => {
+            const moneyRef = ref(db, 'money');  // Reference to 'money' in Firebase
+            const snapshot = await get(moneyRef);
+            
+            if (snapshot.exists()) {
+                const moneyFromFirebase = snapshot.val();
+                setMoney(moneyFromFirebase);
+            } else {
+                console.log("Money value does not exist in Firebase, initializing to 0");
+                setMoney(0);  // Default value if not found
+            }
+        };
+    
+        fetchMoney();
+    }, []);
+    
+    
+    const handleSubmit = async () => {
+        if (inputAmount && inputCategory) {
+            const amount = parseInt(inputAmount);
+            const newTransaction = {
+                id: Date.now().toString(), // Use timestamp as a unique ID
+                type: modalType,
+                amount: amount,
+                date: selectedDate.toISOString(), // Store date as ISO string
+                description: inputDescription || "",
+                category: inputCategory,
+            };
+    
+            // Update state
+            setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
+    
+            // Save to Firebase with custom ID
+            const transactionRef = ref(db, `transactions/${newTransaction.id}`);
+            await set(transactionRef, newTransaction);
+    
+            setModalVisible(false);
+        }
+    };
+    
+    
+    const handleEdit = (index) => {
+        setEditIndex(index);
+        setEditAmount(transactions[index].amount.toString());
+        setModalVisible(true);
+        setModalType(transactions[index].type);
+        setInputAmount(transactions[index].amount.toString())
+        setInputDescription(transactions[index].description);
+        setInputCategory(transactions[index].category);
+    }
+
+    // Handle transaction edit
+    const handleSubmitEdit = async () => {
+        if (!inputAmount || !inputCategory || editIndex === -1) return;
+    
+        const newAmount = parseInt(inputAmount, 10);
+        const oldTransaction = transactions[editIndex];
+    
+        const updatedTransaction = {
+            ...oldTransaction,
+            amount: newAmount,
+            description: inputDescription,
+            category: inputCategory,
+            date: selectedDate.toISOString(),
+        };
+    
+        setTransactions(prevTransactions => {
+            const updatedTransactions = [...prevTransactions];
+            updatedTransactions[editIndex] = updatedTransaction;
+            return updatedTransactions;
+        });
+    
+        // Update Firebase
+        const transactionRef = ref(db, `transactions/${updatedTransaction.id}`);
+        await update(transactionRef, updatedTransaction);
+    
+        setEditIndex(-1);
+        setModalVisible(false);
+    };
+    
+
+    // Handle transaction deletion
+    const handleDelete = async (index) => {
+        Alert.alert(
+            'Confirm Delete',
+            'Are you sure you want to delete this transaction?',
+            [
+                {
+                    text: 'Cancel',
+                    style: 'cancel'
+                },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const deletedItem = transactions[index];
+
+                        setTransactions(prevTransactions => {
+                            const updatedTransactions = [...prevTransactions];
+                            updatedTransactions.splice(index, 1);
+                            return updatedTransactions;
+                        });
+
+                        const transactionRef = ref(db, 'transactions/' + deletedItem.id);
+                        await remove(transactionRef);
+
+                        // Recalculate and update money in Firebase
+                        const updatedMoney = deletedItem.type === 'masuk' ? money - deletedItem.amount : money + deletedItem.amount;
+                        updateMoneyAfterTransaction(updatedMoney);
+                    }
+                }
+            ]
+        );
+    };
 
     const showDatePicker = () => {
         setDatePickerVisibility(true);
@@ -47,102 +195,6 @@ const Home = ({ navigation }) => {
         setInputDescription('');
         setInputCategory('');
     };
-
-    const handleSubmit = () => {
-        if (inputAmount && inputCategory) {
-            const amount = parseInt(inputAmount);
-            const newMoney = modalType === 'masuk' ? money + amount : money - amount
-            setMoney(newMoney);
-            
-            setTransactions([
-                ...transactions,
-                {
-                    type: modalType,
-                    amount: amount,
-                    date: new Date(),
-                    description: inputDescription || "",
-                    category: inputCategory,
-                    date: selectedDate,
-                }
-            ]);
-            setModalVisible(false);
-        }
-    };
-
-    const handleEdit = (index) => {
-        setEditIndex(index);
-        setEditAmount(transactions[index].amount.toString());
-        setModalVisible(true);
-        setModalType(transactions[index].type);
-        setInputAmount(transactions[index].amount.toString())
-        setInputDescription(transactions[index].description);
-        setInputCategory(transactions[index].category);
-    }
-
-    const handleSubmitEdit = () => {
-        if (!inputAmount || !inputCategory) return;
-    
-        const newAmount = parseInt(inputAmount, 10);
-    
-      
-        setTransactions(prevTransactions => {
-            const updatedTransactions = [...prevTransactions];
-    
-            const oldItem = updatedTransactions[editIndex];
-    
-            let updatedMoney = money;
-            if (oldItem.type === 'masuk') {
-                updatedMoney -= oldItem.amount;
-            } else {
-                updatedMoney += oldItem.amount;
-            }
-            if (modalType === 'masuk') {
-                updatedMoney += newAmount;
-            } else {
-                updatedMoney -= newAmount;
-            }
-            setMoney(updatedMoney);
-    
-    
-            updatedTransactions[editIndex] = { ...oldItem, amount: newAmount, description: inputDescription, category: inputCategory };
-            return updatedTransactions;
-    
-        });
-    
-    
-        setEditIndex(-1);
-        setModalVisible(false);
-        setInputAmount('');
-    };
-
-    const handleDelete = (index) => {
-        Alert.alert(
-            'Confirm Delete',
-            'Apakah anda yakin untuk menghapus transaksi ini?',
-            [
-                {
-                    text: 'Cancel',
-                    style: 'cancel'
-                },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                        setTransactions(prevTransactions => {  // Functional form of setState!
-                            const updatedTransactions = [...prevTransactions];
-                            const deletedItem = updatedTransactions.splice(index, 1)[0];
-
-                            // Recalculate money
-                            const updatedMoney = deletedItem.type === 'masuk' ? money - deletedItem.amount : money + deletedItem.amount;
-
-                            setMoney(updatedMoney);
-                            return updatedTransactions; // Return updated array
-                        });
-                    }
-                }
-            ]
-        )
-    }
 
     const renderTransaction = ({ item, index }) => (
         <>
@@ -194,7 +246,6 @@ const Home = ({ navigation }) => {
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     /> 
-                    {/* <Icon name="search" size={20} color="gray" style={styles.searchIcon} /> */}
                     </View>
                     <TouchableOpacity
                         style={styles.filterButton}
