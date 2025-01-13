@@ -5,8 +5,9 @@ import { id } from 'date-fns/locale';
 import Images from '../components/imageIndex';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-import { db } from '../db/firebaseConfig';  // Firebase Realtime Database
-import { ref, set, get, update, remove, child } from 'firebase/database';
+import { db } from '../db/firebaseConfig'; 
+import { ref, set, get, update, remove } from 'firebase/database';
+
 
 const Home = ({ navigation }) => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -24,18 +25,18 @@ const Home = ({ navigation }) => {
     const [inputCategory, setInputCategory] = useState('');
     const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date());
-
     const presetAmounts = [10000, 50000, 100000, 500000, 1000000, 2000000];
-    const presetCategories = ['Pemasukan', 'Makanan', 'Transportasi', 'Hiburan', 'Kebutuhan', 'Lainnya'];
+    const presetCategories = ['Keuangan', 'Makanan', 'Hiburan', 'Kebutuhan', 'Lainnya'];
 
+    //kode database ygy mff males misahin
     const updateMoneyInFirebase = async (newMoney) => {
-        const moneyRef = ref(db, 'money');  // Reference to 'money' in Firebase
+        const moneyRef = ref(db, 'money');
         await set(moneyRef, newMoney);
     };
     
     const updateMoneyAfterTransaction = (newMoney) => {
-        setMoney(newMoney); // Update the local state
-        updateMoneyInFirebase(newMoney); // Update the Firebase value
+        setMoney(newMoney);
+        updateMoneyInFirebase(newMoney);
     };
     
     useEffect(() => {
@@ -60,7 +61,7 @@ const Home = ({ navigation }) => {
 
     useEffect(() => {
         const fetchMoney = async () => {
-            const moneyRef = ref(db, 'money');  // Reference to 'money' in Firebase
+            const moneyRef = ref(db, 'money');
             const snapshot = await get(moneyRef);
             
             if (snapshot.exists()) {
@@ -68,38 +69,42 @@ const Home = ({ navigation }) => {
                 setMoney(moneyFromFirebase);
             } else {
                 console.log("Money value does not exist in Firebase, initializing to 0");
-                setMoney(0);  // Default value if not found
+                setMoney(0);
             }
         };
     
         fetchMoney();
     }, []);
     
-    
+    //Create transaksi
     const handleSubmit = async () => {
         if (inputAmount && inputCategory) {
-            const amount = parseInt(inputAmount);
+            const amount = parseInt(inputAmount, 10);
             const newTransaction = {
-                id: Date.now().toString(), // Use timestamp as a unique ID
+                id: Date.now().toString(), //tanggal dijadiin id
                 type: modalType,
                 amount: amount,
-                date: selectedDate.toISOString(), // Store date as ISO string
+                date: selectedDate.toISOString(),
                 description: inputDescription || "",
                 category: inputCategory,
             };
     
-            // Update state
-            setTransactions(prevTransactions => [...prevTransactions, newTransaction]);
-    
-            // Save to Firebase with custom ID
+            //sve ke firebase with custom ID
             const transactionRef = ref(db, `transactions/${newTransaction.id}`);
             await set(transactionRef, newTransaction);
+    
+            //update state & money
+            setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
+
+            const updatedMoney =
+                modalType === "masuk" ? money + amount : money - amount;
+            updateMoneyAfterTransaction(updatedMoney);
     
             setModalVisible(false);
         }
     };
     
-    
+    //Update transaksi
     const handleEdit = (index) => {
         setEditIndex(index);
         setEditAmount(transactions[index].amount.toString());
@@ -110,7 +115,6 @@ const Home = ({ navigation }) => {
         setInputCategory(transactions[index].category);
     }
 
-    // Handle transaction edit
     const handleSubmitEdit = async () => {
         if (!inputAmount || !inputCategory || editIndex === -1) return;
     
@@ -125,22 +129,29 @@ const Home = ({ navigation }) => {
             date: selectedDate.toISOString(),
         };
     
-        setTransactions(prevTransactions => {
+        setTransactions((prevTransactions) => {
             const updatedTransactions = [...prevTransactions];
             updatedTransactions[editIndex] = updatedTransaction;
             return updatedTransactions;
         });
     
-        // Update Firebase
+        //Update firebase & money
         const transactionRef = ref(db, `transactions/${updatedTransaction.id}`);
         await update(transactionRef, updatedTransaction);
+    
+        const moneyDifference =
+            updatedTransaction.type === "masuk"
+                ? newAmount - oldTransaction.amount
+                : oldTransaction.amount - newAmount;
+    
+        const updatedMoney = money + moneyDifference;
+        updateMoneyAfterTransaction(updatedMoney);
     
         setEditIndex(-1);
         setModalVisible(false);
     };
-    
 
-    // Handle transaction deletion
+    //Delete transaksi
     const handleDelete = async (index) => {
         Alert.alert(
             'Confirm Delete',
@@ -162,10 +173,10 @@ const Home = ({ navigation }) => {
                             return updatedTransactions;
                         });
 
+                        //Update firebase & money
                         const transactionRef = ref(db, 'transactions/' + deletedItem.id);
                         await remove(transactionRef);
 
-                        // Recalculate and update money in Firebase
                         const updatedMoney = deletedItem.type === 'masuk' ? money - deletedItem.amount : money + deletedItem.amount;
                         updateMoneyAfterTransaction(updatedMoney);
                     }
@@ -174,6 +185,7 @@ const Home = ({ navigation }) => {
         );
     };
 
+    //Datepicker and debugging ygy
     const showDatePicker = () => {
         setDatePickerVisibility(true);
     };
@@ -237,16 +249,18 @@ const Home = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <View style={styles.upperContainer}>
+                {/* search bar */}
                 <View style={styles.searchContainer}>
                 <View style={styles.searchBar}>
                     <TextInput 
                         style={styles.searchInput}
-                        placeholder="Search"
+                        placeholder="Cari"
                         placeholderTextColor="white"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     /> 
                     </View>
+                    {/* filter */}
                     <TouchableOpacity
                         style={styles.filterButton}
                         onPress={() => {
@@ -268,6 +282,8 @@ const Home = ({ navigation }) => {
                         </Text>
                     </TouchableOpacity>
                 </View>
+
+                {/* nampilin uang */}
                 <View style={styles.moneyContainer}>
                     <Text style={styles.moneyText}>Rp. {showMoney ? money.toLocaleString() + ',-' : '********'}</Text>
                     <Pressable onPress={ () => setShowMoney(!showMoney)} style={styles.toggleButton}>
@@ -276,6 +292,7 @@ const Home = ({ navigation }) => {
                     </Pressable>
                 </View>
 
+                {/* tombol transaksi */}
                 <View style={styles.buttonContainer}>
                     <Pressable style={styles.button} onPress={() => handleButtonPress('masuk')}>
                         <Image source={Images.arrowoutwhite} style={styles.buttonIcon} />
@@ -288,6 +305,7 @@ const Home = ({ navigation }) => {
                 </View>
             </View>
 
+            {/* modal transaksi */}
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -340,10 +358,10 @@ const Home = ({ navigation }) => {
                         </View>
                         <DateTimePickerModal
                             isVisible={isDatePickerVisible}
-                            mode="date" // You can change to "time" or "datetime" if needed
+                            mode="date" //bisa "time" sama "datetime"
                             onConfirm={handleConfirm}
                             onCancel={hideDatePicker}
-                            date={selectedDate} // Set the current selected date
+                            date={selectedDate} //set tanggal yg dipilih
                         />
                         <TouchableOpacity 
                             style={styles.dateButton}
@@ -356,13 +374,14 @@ const Home = ({ navigation }) => {
                                 <Text style={styles.modalButtonText}>Batal</Text>
                             </Pressable>
                             <Pressable style={styles.modalButton} onPress={editIndex === -1 ? handleSubmit : handleSubmitEdit}>
-                                <Text style={styles.modalButtonText}>{editIndex === -1 ? 'Submit' : 'Simpan'}</Text>
+                                <Text style={styles.modalButtonText}>{editIndex === -1 ? 'Kirim' : 'Simpan'}</Text>
                             </Pressable>
                         </View>
                     </View>
                 </View>
             </Modal>
 
+            {/* Nampilin data */}
             <FlatList
                 data={filteredTransactions}
                 renderItem={renderTransaction}
@@ -370,6 +389,7 @@ const Home = ({ navigation }) => {
                 style={styles.transactionList}
             />
 
+            {/* Ke Halaman Laporan */}
             <TouchableOpacity 
                 onPress={() => navigation.navigate('Report', { transactions })}
                 style={styles.reportButton}
@@ -381,6 +401,7 @@ const Home = ({ navigation }) => {
     )
 }
 
+// Maaf gk dirapihin ygy jadi campur-campur
 const styles = StyleSheet.create({
     container: {
         flex: 1,

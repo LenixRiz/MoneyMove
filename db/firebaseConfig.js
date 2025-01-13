@@ -12,11 +12,11 @@ const firebaseConfig = {
   measurementId: "G-04XWKFQ9TJ"
 };
 
-// Initialize Firebase only if not already initialized
+//Mulai Firebase kalau belum dimulai
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 } else {
-  firebase.app(); // Use the default app
+  firebase.app(); //Pake default
 }
 
 const db = firebase.database();
